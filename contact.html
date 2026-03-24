@@ -135,7 +135,8 @@
     </footer>
 
     <script src="script.js"></script>
-    <script>
+ <script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbzWWNzEMmU9rdVQh-8-1uRTIZOgR-ETIr6kdJ_qecSgBdpuJa7mVWG4a7t2COW1SLlS/exec';
     const form = document.getElementById('contactForm');
     const statusDiv = document.getElementById('formStatus');
     const btn = document.getElementById('submitBtn');
@@ -146,21 +147,11 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         statusDiv.style.display = 'none';
         statusDiv.className = 'form-status';
-
-        // Mailto fallback — replace scriptURL with your Google Sheet endpoint if needed
-        const name = document.getElementById('name').value;
-        const email = document.getElementById('email').value;
-        const subject = document.getElementById('subject').value;
-        const message = document.getElementById('message').value;
-        const mailto = `mailto:mailtosamsoni@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent('From: ' + name + ' (' + email + ')\n\n' + message)}`;
-        window.location.href = mailto;
-
-        setTimeout(() => {
-            showStatus("Opening your email client...", 'success');
-            form.reset();
-            btn.disabled = false;
-            btn.innerHTML = '<span class="btn-text">Send Message</span> <i class="fas fa-paper-plane"></i>';
-        }, 500);
+        fetch(scriptURL, { method: 'POST', body: new FormData(form) })
+            .then(r => { if (!r.ok) throw new Error('Network error'); return r; })
+            .then(() => { showStatus("Message sent! I'll get back to you soon.", 'success'); form.reset(); })
+            .catch(() => { showStatus('Error sending. Please email me directly.', 'error'); })
+            .finally(() => { btn.disabled = false; btn.innerHTML = '<span class="btn-text">Send Message</span> <i class="fas fa-paper-plane"></i>'; });
     });
 
     function showStatus(msg, type) {
