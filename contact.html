@@ -135,45 +135,136 @@
     </footer>
 
     <script src="script.js"></script>
- <script>
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbzWWNzEMmU9rdVQh-8-1uRTIZOgR-ETIr6kdJ_qecSgBdpuJa7mVWG4a7t2COW1SLlS/exec';
-    const form = document.getElementById('contactForm');
-    const statusDiv = document.getElementById('formStatus');
-    const btn = document.getElementById('submitBtn');
+     <script>
+    /* ═══════════════════════════════════════════════════════════
+       FORM SUBMISSION
+       Key fix: URLSearchParams + Content-Type: application/x-www-form-urlencoded
+       Apps Script e.parameter CANNOT read multipart/form-data (FormData).
+       It ONLY reads application/x-www-form-urlencoded correctly.
+    ════════════════════════════════════════════════════════════ */
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBiGV9ihPpi-xZfgoWJGsZeHtCg9OP7rI-AnzbNQULdqwsHmZosEoCbt3kUk2IYMQXog/exec';
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        statusDiv.style.display = 'none';
-        statusDiv.className = 'form-status';
-        fetch(scriptURL, { method: 'POST', body: new FormData(form) })
-            .then(r => { if (!r.ok) throw new Error('Network error'); return r; })
-            .then(() => { showStatus("Message sent! I'll get back to you soon.", 'success'); form.reset(); })
-            .catch(() => { showStatus('Error sending. Please email me directly.', 'error'); })
-            .finally(() => { btn.disabled = false; btn.innerHTML = '<span class="btn-text">Send Message</span> <i class="fas fa-paper-plane"></i>'; });
-    });
+const form      = document.getElementById('contactForm');
+const statusDiv = document.getElementById('formStatus');
+const submitBtn = document.getElementById('submitBtn');
 
-    function showStatus(msg, type) {
-        statusDiv.innerText = msg;
-        statusDiv.className = 'form-status ' + type;
-        statusDiv.style.display = 'block';
-        if (type === 'success') setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const name    = document.getElementById('name').value.trim();
+    const email   = document.getElementById('email').value.trim();
+    const subject = document.getElementById('subject').value.trim();
+    const message = document.getElementById('message').value.trim();
+
+    // Basic validation
+    if (!name || !email || !subject || !message) {
+        showStatus('Please fill in all fields.', 'error');
+        return;
     }
 
-    function copyToClipboard(id, btn) {
-        const text = document.getElementById(id).innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i>';
-            btn.classList.add('copied');
-            setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
-        }).catch(() => {
-            const ta = document.createElement('textarea');
-            ta.value = text; document.body.appendChild(ta); ta.select();
-            document.execCommand('copy'); document.body.removeChild(ta);
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    hideStatus();
+
+    // Build payload (Apps Script friendly)
+    const payload = new URLSearchParams();
+    payload.append('name', name);
+    payload.append('email', email);
+    payload.append('subject', subject);
+    payload.append('message', message);
+
+    try {
+        // Send request (no-cors required for Apps Script)
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // 🔥 REQUIRED
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: payload.toString()
         });
+
+        // With no-cors, we assume success if no crash
+        showStatus("Message sent! I'll get back to you soon.", 'success');
+        form.reset();
+
+    } catch (err) {
+        console.error('Submission error:', err);
+        showStatus('Error sending. Please email me directly at adelugbaadejare03@gmail.com', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span class="btn-text">Send Message</span> <i class="fas fa-paper-plane"></i>';
     }
+});
+
+function showStatus(msg, type) {
+    statusDiv.textContent = msg;
+    statusDiv.className = 'form-status ' + type;
+    statusDiv.style.display = 'block';
+
+    if (type === 'success') {
+        setTimeout(hideStatus, 5000);
+    }
+}
+
+function hideStatus() {
+    statusDiv.style.display = 'none';
+    statusDiv.className = 'form-status';
+}
+
+/* =========================
+   COPY TO CLIPBOARD
+========================= */
+
+function copyText(text, btn) {
+    const successUI = () => {
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.add('copied');
+
+        setTimeout(() => {
+            btn.innerHTML = original;
+            btn.classList.remove('copied');
+        }, 2000);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+            .then(successUI)
+            .catch(fallback);
+    } else {
+        fallback();
+    }
+
+    function fallback() {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+
+        try {
+            document.execCommand('copy');
+            successUI();
+        } catch (err) {
+            console.error('Copy failed', err);
+        }
+
+        document.body.removeChild(ta);
+    }
+}
+
+function copyEmail(btn) {
+    copyText(document.getElementById('emailText').innerText, btn);
+}
+
+function copyPhone(btn) {
+    copyText(document.getElementById('phoneText').innerText, btn);
+}
     </script>
+
 </body>
 </html>
